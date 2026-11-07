@@ -29,6 +29,10 @@ namespace SjgPatch
         internal static ConfigEntry<bool> OfflineMode;
         internal static ConfigEntry<bool> ForceDeveloper;
         internal static ConfigEntry<string> ApiBaseUrl;
+        internal static ConfigEntry<bool> HostLocalMatches;
+        internal static ConfigEntry<string> MatchMap;
+        internal static ConfigEntry<int> BotCount;
+        internal static ConfigEntry<string> HostHotkey;
 
         private void Awake()
         {
@@ -40,11 +44,38 @@ namespace SjgPatch
             ApiBaseUrl = Config.Bind("Server", "ApiBaseUrl", "",
                 "Base URL of a self-hosted SJG server, e.g. http://127.0.0.1:8080/ . Leave empty for pure offline mode.");
 
+            HostLocalMatches = Config.Bind("LocalMatch", "HostLocalMatches", true,
+                "When you pick MATCHMAKING, host a local server with bots instead of contacting the dead services.");
+            MatchMap = Config.Bind("LocalMatch", "MatchMap", "Soviet Jump Game Map A",
+                "Map to host locally. One of: Soviet Jump Game Map A / Map B / Map Moon / Tutorial.");
+            BotCount = Config.Bind("LocalMatch", "BotCount", 20,
+                "Number of bots the local server spawns.");
+            HostHotkey = Config.Bind("LocalMatch", "HostHotkey", "F8",
+                "Hotkey to host a local bot match from anywhere (e.g. F8). Empty to disable.");
+
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(Patches));
             Log.LogInfo(Name + " " + Version + " loaded (OfflineMode=" + OfflineMode.Value + ").");
 
             StartCoroutine(Bootstrap());
+        }
+
+        private void Update()
+        {
+            if (!HostLocalMatches.Value || string.IsNullOrEmpty(HostHotkey.Value))
+                return;
+
+            try
+            {
+                KeyCode key;
+                if (Enum.TryParse(HostHotkey.Value, true, out key) && Input.GetKeyDown(key))
+                    LocalMatch.Host();
+            }
+            catch (Exception e)
+            {
+                Log.LogError("Invalid HostHotkey '" + HostHotkey.Value + "': " + e.Message);
+                HostHotkey.Value = "";
+            }
         }
 
         private IEnumerator Bootstrap()

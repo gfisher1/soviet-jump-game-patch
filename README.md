@@ -22,7 +22,13 @@ game reaches the main menu, and can point the client at a self-hosted server
 - ✅ Past the dead authentication screen → main menu
 - ✅ **Playable offline**: `PRACTICE` starts the game's own local Bolt server
   (`BoltLauncher.StartServer(UdpEndPoint.Any, "Soviet Jump Game Tutorial")`)
-- 🚧 Online-style play (Matchmaking) needs the companion server
+- ✅ **Solo bot match** (experimental): picking `MATCHMAKING` hosts a local server on a
+  real map (default `Soviet Jump Game Map A`) and fills it with bots
+  (`LocalMatch.BotCount`, default 20), or press the `F8` hotkey. The client patch
+  fixes several bugs that only surface when you "play as the server" (bots registering
+  as the server player, the empty-economy palette crash, bot count curve, ...).
+- 🚧 Verified in a headless (Wine + software-rendering) test environment; a real
+  GPU/Proton setup may behave better.
 
 ![Main menu](docs/screenshot-menu.png)
 ![Practice](docs/screenshot-practice.png)
@@ -42,6 +48,14 @@ The plugin (`plugin/src/`) makes three small changes:
 
 It also forces `ClientPermission.IsDeveloper = true` (unlocks the in-game dev console)
 and can redirect the custom backend URL (`Server.ApiBaseUrl`) to a self-hosted server.
+
+**Local bot match:** the `LocalMatch` section intercepts the MATCHMAKING button (and the
+`F8` hotkey) to host a local server with bots instead of contacting the dead services.
+It patches the bugs that break "playing as the server":
+`PlayerObjectRegistry.ServerPlayer` (bots polluted it, so the real player never spawned),
+`RoundManager.GetTargetBotPlayerCount` (returned 0 → no bots), the empty-catalog palette
+crash in `PlayerMachine.Attached`, and `PlayerObject.RandomizeCustomization`'s infinite
+loop.
 
 ## Install
 
@@ -73,6 +87,10 @@ Created on first run at `BepInEx/config/games.gfi.sjg.patch.cfg`:
 | `OfflineMode` | `true` | Short-circuit the dead auth and run a local session. |
 | `ForceDeveloper` | `true` | Force `ClientPermission.IsDeveloper = true`. |
 | `ApiBaseUrl` | *(empty)* | Base URL of a self-hosted server, e.g. `http://127.0.0.1:8080/`. Empty = pure offline. |
+| `HostLocalMatches` | `true` | MATCHMAKING hosts a local bot match instead of the dead services. |
+| `MatchMap` | `Soviet Jump Game Map A` | Map to host locally (Map A / Map B / Map Moon / Tutorial). |
+| `BotCount` | `20` | Bots spawned by a locally-hosted match. |
+| `HostHotkey` | `F8` | Hotkey to host a local bot match from anywhere (empty to disable). |
 
 ## Build
 

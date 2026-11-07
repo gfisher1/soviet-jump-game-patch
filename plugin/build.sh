@@ -36,6 +36,10 @@ refs=(
   "$managed/PlayFab.dll"
   "$managed/Facepunch.Steamworks.Win64.dll"
   "$managed/netstandard.dll"
+  "$managed/bolt.dll"
+  "$managed/bolt.user.dll"
+  "$managed/udpkit.common.dll"
+  "$managed/UnityEngine.InputLegacyModule.dll"
 )
 
 ref_args=()
