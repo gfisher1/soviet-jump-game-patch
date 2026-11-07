@@ -104,18 +104,25 @@ namespace SjgPatch
             return false;
         }
 
-        // MATCHMAKING button -> host a local server with bots instead of the dead services.
-        // Patch the public entry point (not Impl) so none of the matchmaking/cancel-token
-        // machinery runs - this mirrors the PRACTICE button, which starts a server cleanly.
+        // MATCHMAKING button -> host a local bot match, or join a configured server, instead of
+        // contacting the dead services. Patched at the public entry point so none of the
+        // matchmaking/cancel-token machinery runs (mirrors the PRACTICE button).
         [HarmonyPrefix]
         [HarmonyPatch(typeof(EPB.Networking.MatchConnection), "ConnectToMatchmaking")]
         private static bool ConnectToMatchmaking_Prefix()
         {
-            if (!SjgPlugin.HostLocalMatches.Value)
-                return true;
-
-            LocalMatch.Host();
-            return false;
+            string action = SjgPlugin.MatchmakingAction.Value;
+            if (string.Equals(action, "Connect", StringComparison.OrdinalIgnoreCase))
+            {
+                LocalMatch.JoinConfigured();
+                return false;
+            }
+            if (SjgPlugin.HostLocalMatches.Value)
+            {
+                LocalMatch.Host();
+                return false;
+            }
+            return true;
         }
 
         private static MethodInfo _assignAllDefaults;

@@ -2,15 +2,12 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using UdpKit;
+using PlayFab.Internal;
 
 namespace SjgPatch
 {
     /// <summary>
-    /// Hosts a local Bolt server (the same mechanism the game's own PRACTICE button uses)
-    /// on a normal map, with bots filling the lobby - so you can play a full match solo.
-    ///
-    /// On a non-tutorial map the server spawns <see cref="NetworkDebugSettings.ServerBotAmount"/>
-    /// bots (see ServerCallbacks.HandleServerPlayerSpawning).
+    /// Hosting / joining local Bolt servers, plus the fixed host port.
     /// </summary>
     internal static class LocalMatch
     {
@@ -20,11 +17,9 @@ namespace SjgPatch
         internal const string Tutorial = "Soviet Jump Game Tutorial";
 
         private static float _lastHost;
-        private static MethodInfo _startServer;
 
         internal static void Host(string map = null)
         {
-            // Debounce: avoid double-triggering from key repeat / double clicks.
             if (Time.unscaledTime - _lastHost < 3f)
                 return;
             _lastHost = Time.unscaledTime;
@@ -39,15 +34,16 @@ namespace SjgPatch
                 NetworkDebugSettings nds = NetworkDebugSettings.Instance;
                 nds.ServerBotAmount = (uint)bots;
                 // PlayerMachine.Attached() randomizes bot skins by picking a palette out of the
-                // PlayFab economy. With no catalog that list is empty, so the lookup returns null
-                // and the NullReferenceException fires *before* the machine registers itself -
-                // which leaves PlayerMachine.ControllerPlayer unset and stalls the round. We have
-                // no catalog, so disable skin randomization.
+                // PlayFab economy; with no catalog that list is empty and the lookup NREs *before*
+                // the machine registers (which stalls the round). Disable it.
                 nds.ServerBotSkinRandomization = false;
                 nds.ClientBotSkinRandomization = false;
 
-                SjgPlugin.Log.LogInfo("Hosting local match: map='" + map + "', bots=" + bots);
-                StartBoltServer(map);
+                ushort port = (ushort)Mathf.Clamp(SjgPlugin.HostPort.Value, 1, 65535);
+                SjgPlugin.Log.LogInfo("Hosting local match: map='" + map + "', bots=" + bots + ", port=" + port);
+                StartBoltServer(new UdpEndPoint(UdpIPv4Address.Any, port), map);
+
+                SjgPlugin.Instance?.OnHosted(port, map);
             }
             catch (Exception e)
             {
@@ -55,9 +51,58 @@ namespace SjgPatch
             }
         }
 
-        // BoltLauncher lives in bolt.dll; its exact namespace differs between builds, so
-        // resolve it by reflection and only ever bind to StartServer(UdpEndPoint, string).
-        private static void StartBoltServer(string map)
+        /// <summary>Directly connect to a server (server browser / config).</summary>
+        internal static void JoinAddress(string host, int port)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(host) || port <= 0 || port > 65535)
+                {
+                    SjgPlugin.Log.LogError("Invalid server address: " + host + ":" + port);
+                    return;
+                }
+
+                SjgPlugin.Log.LogInfo("Connecting to " + host + ":" + port);
+                BoltPro.ConnectDirect(host, (ushort)port,
+                    SingletonMonoBehaviour<PlayFabManager>.Instance?.CurrentPlayer?.CreateToken());
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogError("Connect failed: " + e);
+            }
+        }
+
+        /// <summary>Connect to the address from the config ("host:port").</summary>
+        internal static void JoinConfigured()
+        {
+            string addr = SjgPlugin.DirectConnectAddress.Value;
+            if (string.IsNullOrEmpty(addr))
+            {
+                SjgPlugin.Log.LogWarning("DirectConnectAddress is empty.");
+                return;
+            }
+
+            int colon = addr.LastIndexOf(':');
+            if (colon <= 0)
+            {
+                SjgPlugin.Log.LogError("DirectConnectAddress must be host:port, got '" + addr + "'");
+                return;
+            }
+
+            string host = addr.Substring(0, colon);
+            int port;
+            if (!int.TryParse(addr.Substring(colon + 1), out port))
+            {
+                SjgPlugin.Log.LogError("Bad port in DirectConnectAddress: '" + addr + "'");
+                return;
+            }
+
+            JoinAddress(host, port);
+        }
+
+        private static MethodInfo _startServer;
+
+        private static void StartBoltServer(UdpEndPoint endpoint, string map)
         {
             if (_startServer == null)
             {
@@ -76,17 +121,14 @@ namespace SjgPatch
                     throw new InvalidOperationException("Could not find BoltLauncher.");
 
                 _startServer = launcher.GetMethod(
-                    "StartServer",
-                    BindingFlags.Public | BindingFlags.Static,
-                    null,
-                    new[] { typeof(UdpEndPoint), typeof(string) },
-                    null);
+                    "StartServer", BindingFlags.Public | BindingFlags.Static, null,
+                    new[] { typeof(UdpEndPoint), typeof(string) }, null);
 
                 if (_startServer == null)
                     throw new InvalidOperationException("Could not find BoltLauncher.StartServer(UdpEndPoint,string).");
             }
 
-            _startServer.Invoke(null, new object[] { UdpEndPoint.Any, map });
+            _startServer.Invoke(null, new object[] { endpoint, map });
         }
     }
 }

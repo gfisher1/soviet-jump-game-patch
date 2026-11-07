@@ -57,6 +57,32 @@ It patches the bugs that break "playing as the server":
 crash in `PlayerMachine.Attached`, and `PlayerObject.RandomizeCustomization`'s infinite
 loop.
 
+## Server browser & joining servers
+
+Because custom IMGUI does not render in this build, the browser uses the game's own
+**Quantum Console** (open it in-game with the `~` key). With `Server.ApiBaseUrl` set:
+
+| Command | Does |
+| --- | --- |
+| `sjg-refresh` | Fetch the server list from the backend (`/servers`). |
+| `sjg-servers` | List servers (name, address, players). |
+| `sjg-join <index>` | Join a server by its index. |
+| `sjg-join-address <host:port>` | Join a server directly. |
+| `sjg-host` | Host a local bot match. |
+| `sjg-connect` | Join `Server.DirectConnectAddress`. |
+
+**Config-file fallback** (no console needed): set a fixed server and press the hotkey:
+
+```ini
+[Server]
+DirectConnectAddress = 192.168.1.50:42010   ; host:port
+ConnectHotkey = F6                          ; press F6 in-game to join it
+MatchmakingAction = Connect                 ; make MATCHMAKING join it too (Host|Connect|Vanilla)
+```
+
+Hosted matches are advertised to the backend (`LocalMatch.RegisterWithServer`) so they show
+up in other players' `sjg-servers` lists.
+
 ## Install
 
 Requires the retail game files (bring your own, legally obtained copy).
@@ -86,11 +112,17 @@ Created on first run at `BepInEx/config/games.gfi.sjg.patch.cfg`:
 | --- | --- | --- |
 | `OfflineMode` | `true` | Short-circuit the dead auth and run a local session. |
 | `ForceDeveloper` | `true` | Force `ClientPermission.IsDeveloper = true`. |
-| `ApiBaseUrl` | *(empty)* | Base URL of a self-hosted server, e.g. `http://127.0.0.1:8080/`. Empty = pure offline. |
+| `ApiBaseUrl` | *(empty)* | Base URL of a self-hosted server, e.g. `http://127.0.0.1:8080/`. Enables the server browser + matchmaking. |
+| `DirectConnectAddress` | *(empty)* | Fixed server to join, as `host:port`. |
+| `ConnectHotkey` | `F6` | Join `DirectConnectAddress` (empty to disable). |
+| `ServerBrowserHotkey` | `F9` | Log the server list to the log file (empty to disable). |
+| `MatchmakingAction` | `Host` | What MATCHMAKING does: `Host` (local bot match), `Connect` (join `DirectConnectAddress`), `Vanilla`. |
 | `HostLocalMatches` | `true` | MATCHMAKING hosts a local bot match instead of the dead services. |
 | `MatchMap` | `Soviet Jump Game Map A` | Map to host locally (Map A / Map B / Map Moon / Tutorial). |
 | `BotCount` | `20` | Bots spawned by a locally-hosted match. |
-| `HostHotkey` | `F8` | Hotkey to host a local bot match from anywhere (empty to disable). |
+| `HostPort` | `42010` | UDP port a locally-hosted match listens on. |
+| `HostHotkey` | `F8` | Host a local bot match from anywhere (empty to disable). |
+| `RegisterWithServer` | `true` | Advertise a hosted match to the backend so it appears in server browsers. |
 
 ## Build
 

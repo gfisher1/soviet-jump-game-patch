@@ -40,6 +40,11 @@ refs=(
   "$managed/bolt.user.dll"
   "$managed/udpkit.common.dll"
   "$managed/UnityEngine.InputLegacyModule.dll"
+  "$managed/UnityEngine.IMGUIModule.dll"
+  "$managed/UnityEngine.UnityWebRequestModule.dll"
+  "$managed/Newtonsoft.Json.dll"
+  "$managed/QFSW.QC.dll"
+  "$managed/UniRx.Async.dll"
 )
 
 ref_args=()
