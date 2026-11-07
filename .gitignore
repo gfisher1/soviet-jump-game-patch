@@ -1,0 +1,11 @@
+# Build artifacts
+dist/*.pdb
+plugin/**/bin/
+plugin/**/obj/
+
+# Local test/scratch
+*.tmp
+*.log
+
+# BepInEx runtime (installed into the game dir, never committed)
+BepInEx/plugins/
