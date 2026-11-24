@@ -1,0 +1,4 @@
+# The Windows installers must keep CRLF line endings.
+*.bat text eol=crlf
+# Everything else in the scripts/install folders is Unix.
+*.sh  text eol=lf

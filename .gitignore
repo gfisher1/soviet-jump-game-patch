@@ -1,5 +1,8 @@
 # Build artifacts
 dist/*.pdb
+dist/*.zip
+dist/.stage/
+dist/.cache/
 plugin/**/bin/
 plugin/**/obj/
 

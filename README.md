@@ -35,50 +35,60 @@ Works on **Windows** and **Linux (Steam Proton)**.
 ## Requirements
 
 - The retail game (bring your own, legally obtained copy).
-- Nothing else — the patch ships the built `dist/SjgPatch.dll` and fetches BepInEx for you.
+- **Nothing else.** The [release download](../../releases) bundles everything —
+  BepInEx *and* the built plugin — so there is nothing to install and no internet
+  connection is needed.
 
 ---
 
-## Install — Windows
+## Install (recommended)
 
-1. Put the repo somewhere convenient.
-2. Open **PowerShell** in the repo folder and run (adjust the path):
+Download the latest `sjg-patch-*.zip` from the [releases page](../../releases) and
+unzip it anywhere. It contains the loader, the plugin and the installers.
 
-   ```powershell
-   .\install\install.bat "C:\Program Files (x86)\Steam\steamapps\common\Soviet Jump Game"
-   ```
+**Windows:** double-click **`Install.bat`**. It finds the game automatically
+(drag the game folder onto the file, or paste the path, if it can't) and copies
+BepInEx + `SjgPatch.dll` into it. Then launch the game through Steam.
 
-   (or `powershell -ExecutionPolicy Bypass -File .\install\install.ps1 -GameDir "…"`)
+**Linux / Steam Proton:** from a terminal in the unzipped folder:
 
-   This downloads **BepInEx 5 x64**, installs it, and copies `SjgPatch.dll` into
-   `BepInEx\plugins\`.
-3. Launch the game normally through **Steam**.
+```bash
+./install.sh
+```
 
-## Install — Linux (Steam / Proton)
+then set the game's **Launch Options** in Steam to:
 
-1. Open a terminal in the repo folder and run (adjust the path):
+```
+WINEDLLOVERRIDES="winhttp=n,b" %command%
+```
 
-   ```bash
-   ./install/install.sh "$HOME/.steam/steam/steamapps/common/Soviet Jump Game"
-   ```
+**Already have BepInEx?** Skip the installers and just drop `SjgPatch.dll` into
+`<game>/BepInEx/plugins/`.
 
-   This fetches BepInEx 5 x64 and copies `SjgPatch.dll` into `BepInEx/plugins/`.
-2. In Steam, set the game's **Launch Options** to the following (Proton needs to load
-   BepInEx's `winhttp.dll` instead of its own):
+## Install (from the git checkout)
 
-   ```
-   WINEDLLOVERRIDES="winhttp=n,b" %command%
-   ```
-3. Launch the game normally through **Steam**.
+The scripts work straight from a clone too. In that case BepInEx is downloaded
+once (needs `curl`/`wget` + `unzip`) and the plugin is taken from `dist/` — or
+built with Mono if it is missing:
+
+```bash
+./install/install.sh "/path/to/Soviet Jump Game"       # Linux
+.\install\install.bat  "C:\path\to\Soviet Jump Game"   # Windows (thin wrapper over install.ps1)
+```
 
 ## Uninstall
 
+**Release bundle:** run `Uninstall.bat` (Windows) or
+`./uninstall.sh "/path/to/game"` (Linux).
+
+**Checkout:**
+
 ```bash
-./install/uninstall.sh  "/path/to/Soviet Jump Game"          # Linux
-.\install\install.bat   "C:\path\to\Soviet Jump Game" -Remove # Windows
+./install/uninstall.sh "/path/to/game" --with-bepinex          # Linux
+.\install\install.ps1  "C:\path\to\game" -Remove -WithBepInEx  # Windows
 ```
 
-Add `--with-bepinex` (Linux) / `-WithBepInEx` (Windows) to remove BepInEx too.
+Add `-WithBepInEx` / `--with-bepinex` to remove the loader as well.
 
 ---
 
@@ -204,12 +214,15 @@ powershell -ExecutionPolicy Bypass -File .\plugin\build.ps1 -GameDir "C:\path\to
 ## Layout
 
 ```
-plugin/src/      C# plugin sources
-plugin/build.sh  builds dist/SjgPatch.dll with mcs (Linux/macOS)
-plugin/build.ps1 builds it on Windows (Mono required)
-install/         install / uninstall / fetch-bepinex  (.sh and .ps1/.bat)
-dist/            prebuilt SjgPatch.dll
-docs/            screenshots
+plugin/src/       C# plugin sources
+plugin/build.sh   builds dist/SjgPatch.dll with mcs (Linux/macOS)
+plugin/build.ps1  builds it on Windows (Mono required)
+install/          install / uninstall / fetch-bepinex  (.sh and .ps1/.bat)
+packaging/        builds the offline release bundle (assemble.sh + README.txt)
+scripts/          release helper used by CI
+.gitea/workflows  CI: builds the bundle and publishes the release on v* tags
+dist/             prebuilt SjgPatch.dll (+ generated release bundle)
+docs/             screenshots
 ```
 
 ## Legal / disclaimer

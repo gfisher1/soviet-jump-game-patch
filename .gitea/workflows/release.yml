@@ -1,0 +1,41 @@
+name: release
+
+# Builds the self-contained patch bundle (BepInEx + plugin + installers) and
+# attaches it to the Gitea release for the tag.
+#
+# Trigger it by pushing a tag:   git tag v1.0.0 && git push origin v1.0.0
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure zip/unzip are available
+        run: |
+          command -v zip   >/dev/null 2>&1 || (command -v apt-get >/dev/null 2>&1 && apt-get update -qq && apt-get install -y -qq zip unzip) || true
+          command -v unzip >/dev/null 2>&1 || true
+
+      - name: Assemble the offline install bundle
+        run: |
+          chmod +x packaging/assemble.sh scripts/publish-release.sh
+          ./packaging/assemble.sh "${GITHUB_REF_NAME}"
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITEA_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ./scripts/publish-release.sh \
+            "dist/sjg-patch-${TAG}.zip" \
+            "dist/SjgPatch.dll"
