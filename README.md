@@ -42,15 +42,15 @@ which **server** to use — press **Enter** for the default, `sjg.dnd.wtf`.
 
 ## Documentation
 
-Full documentation lives in the **[wiki](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki)**:
+Full documentation lives in the **[wiki](https://github.com/gfisher1/soviet-jump-game-patch/wiki)**:
 
 | Page | Contents |
 | --- | --- |
-| [Installation](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki/Installation) | Release bundle, git checkout, BepInEx note, uninstall |
-| [Configuration](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki/Configuration) | Every config key, with an example file |
-| [How It Works](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki/How-It-Works) | The Harmony patches, in detail |
-| [Building](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki/Building) | Rebuild `SjgPatch.dll` from source |
-| [Troubleshooting](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki/Troubleshooting) | Common problems and fixes |
+| [Installation](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Installation) | Release bundle, git checkout, BepInEx note, uninstall |
+| [Configuration](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Configuration) | Every config key, with an example file |
+| [How It Works](https://github.com/gfisher1/soviet-jump-game-patch/wiki/How-It-Works) | The Harmony patches, in detail |
+| [Building](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Building) | Rebuild `SjgPatch.dll` from source |
+| [Troubleshooting](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Troubleshooting) | Common problems and fixes |
 
 ## Legal / disclaimer
 

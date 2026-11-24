@@ -69,4 +69,4 @@ into:   <game>/BepInEx/plugins/
 
     BepInEx/config/games.gfi.sjg.patch.cfg   ->   [Server] ApiBaseUrl
 
-Documentation: https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki
+Documentation: https://github.com/gfisher1/soviet-jump-game-patch/wiki
