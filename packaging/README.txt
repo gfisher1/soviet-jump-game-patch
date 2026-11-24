@@ -57,7 +57,8 @@ into:   <game>/BepInEx/plugins/
  USAGE
 --------------------------------------------------------------------
   PRACTICE              play the tutorial offline
-  MATCHMAKING (or F8)   host a local bot match
+  MATCHMAKING           connect to the default server (or host a bot match)
+  F8                    force-host a local bot match
   F6                    join the server set in Server.DirectConnectAddress
 
   NOTE: the game's own Rooms (private match / room code) and

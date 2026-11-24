@@ -33,7 +33,7 @@ which **server** to use — press **Enter** for the default, `sjg.dnd.wtf`.
 | Input | Action |
 | --- | --- |
 | `PRACTICE` | Play the tutorial offline (always works) |
-| `MATCHMAKING` / **F8** | Host a local match on a real map with bots |
+| `MATCHMAKING` | **Just click it** — joins the default server, or hosts a local bot match if none is reachable |
 | **F6** | Join the server set in `Server.DirectConnectAddress` |
 
 > **Note:** the game's own **Rooms** (private match / room code) and **server/region
