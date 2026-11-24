@@ -95,10 +95,31 @@ mkdir -p "$game_dir/BepInEx/plugins"
 cp -f "$dll" "$game_dir/BepInEx/plugins/SjgPatch.dll"
 echo "==> Installed plugin -> BepInEx/plugins/SjgPatch.dll"
 
+# ---------------------------------------------------------------------------
+# Default server
+# ---------------------------------------------------------------------------
+default_server="sjg.dnd.wtf"
+server="$default_server"
+if [[ -t 0 ]]; then
+  printf 'Default server address [%s]: ' "$default_server"
+  reply=""
+  IFS= read -r reply || true
+  [[ -n "$reply" ]] && server="$reply"
+fi
+
+cfg="$game_dir/BepInEx/config/games.gfi.sjg.patch.cfg"
+if [[ -f "$cfg" ]]; then
+  echo "==> Keeping existing config: $cfg"
+else
+  mkdir -p "$(dirname "$cfg")"
+  printf '[Server]\nApiBaseUrl = %s\n' "$server" > "$cfg"
+  echo "==> Default server set to: $server"
+fi
+
 echo
 echo "Done. Launch the game normally (through Steam)."
 echo
 echo "Steam / Proton (Linux) users: add this to the game's Launch Options:"
 echo "    WINEDLLOVERRIDES=\"winhttp=n,b\" %command%"
 echo
-echo "Config file (created on first run): BepInEx/config/games.gfi.sjg.patch.cfg"
+echo "Config file: BepInEx/config/games.gfi.sjg.patch.cfg"

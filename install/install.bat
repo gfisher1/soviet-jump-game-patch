@@ -59,10 +59,26 @@ echo ==^> Installing plugin ...
 if not exist "%GAME%\BepInEx\plugins" mkdir "%GAME%\BepInEx\plugins"
 copy /y "%SRC%SjgPatch.dll" "%GAME%\BepInEx\plugins\SjgPatch.dll" >nul
 
+rem ---- default server -------------------------------------------------
+set "DEFAULT_SERVER=sjg.dnd.wtf"
+set "SERVER="
+set /p "SERVER=Default server address [%DEFAULT_SERVER%]: "
+if "%SERVER%"=="" set "SERVER=%DEFAULT_SERVER%"
+
+set "CFG=%GAME%\BepInEx\config\games.gfi.sjg.patch.cfg"
+if exist "%CFG%" (
+  echo ==^> Keeping existing config: %CFG%
+) else (
+  if not exist "%GAME%\BepInEx\config" mkdir "%GAME%\BepInEx\config"
+  >"%CFG%" echo [Server]
+  >>"%CFG%" echo ApiBaseUrl = %SERVER%
+  echo ==^> Default server set to: %SERVER%
+)
+
 echo.
 echo Done. Launch the game normally through Steam.
-echo Config file (created on first run):
-echo   %GAME%\BepInEx\config\games.gfi.sjg.patch.cfg
+echo Config file:
+echo   %CFG%
 echo.
 pause
 exit /b 0

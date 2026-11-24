@@ -59,10 +59,10 @@ into:   <game>/BepInEx/plugins/
   PRACTICE              play the tutorial offline
   MATCHMAKING (or F8)   host a local bot match
   F6                    join the server set in Server.DirectConnectAddress
-  F9                    log the server list
-  ~                     open the in-game console (server browser)
 
-  Config file (created on first run):
-    BepInEx/config/games.gfi.sjg.patch.cfg
+  The installers ask which server to use and write it to the config
+  file (just press Enter to accept the default, sjg.dnd.wtf):
 
-Full documentation: https://git.gfi.sh/gfisher/soviet-jump-game-patch
+    BepInEx/config/games.gfi.sjg.patch.cfg   ->   [Server] ApiBaseUrl
+
+Documentation: https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki

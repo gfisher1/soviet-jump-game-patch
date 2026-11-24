@@ -69,5 +69,21 @@ Copy-Item $dist (Join-Path $pluginDir "SjgPatch.dll") -Force
 Write-Host "==> Installed plugin -> BepInEx\plugins\SjgPatch.dll"
 
 Write-Host ""
+
+# 3. Default server
+$defaultServer = "sjg.dnd.wtf"
+$server = Read-Host "Default server address [$defaultServer]"
+if ([string]::IsNullOrWhiteSpace($server)) { $server = $defaultServer }
+
+$cfg = Join-Path $GameDir "BepInEx\config\games.gfi.sjg.patch.cfg"
+if (Test-Path $cfg) {
+    Write-Host "==> Keeping existing config: $cfg"
+} else {
+    New-Item -ItemType Directory -Force -Path (Split-Path $cfg) | Out-Null
+    Set-Content -Path $cfg -Value "[Server]`r`nApiBaseUrl = $server" -Encoding ASCII
+    Write-Host "==> Default server set to: $server"
+}
+
+Write-Host ""
 Write-Host "Done. Launch the game normally (through Steam)."
-Write-Host "Config file (created on first run): BepInEx\config\games.gfi.sjg.patch.cfg"
+Write-Host "Config file: BepInEx\config\games.gfi.sjg.patch.cfg"

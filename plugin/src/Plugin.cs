@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "0.2.0";
+        public const string Version = "1.1.0";
 
         internal static SjgPlugin Instance;
         internal static ManualLogSource Log;
@@ -44,11 +44,29 @@ namespace SjgPatch
         internal static ConfigEntry<string> ServerBrowserHotkey;
         internal static ConfigEntry<string> MatchmakingAction;
 
-        internal static bool HasApi => !string.IsNullOrEmpty(ApiBaseUrl.Value);
+        /// <summary>
+        /// The configured backend URL, normalised to something the game can use. A bare host
+        /// (the default, "sjg.dnd.wtf") is assumed to be HTTPS; an explicit scheme is honoured
+        /// so a local server can be given as e.g. http://127.0.0.1:8080/ .
+        /// </summary>
+        internal static string ApiBase
+        {
+            get
+            {
+                string value = ApiBaseUrl == null ? "" : ApiBaseUrl.Value.Trim();
+                if (value.Length == 0)
+                    return "";
+                if (value.IndexOf("://", StringComparison.Ordinal) < 0)
+                    value = "https://" + value;
+                return value.TrimEnd('/');
+            }
+        }
+
+        internal static bool HasApi => !string.IsNullOrEmpty(ApiBase);
 
         internal static string ApiUrl(string path)
         {
-            return ApiBaseUrl.Value.TrimEnd(new[] { '/' }) + "/" + path.TrimStart(new[] { '/' });
+            return ApiBase + "/" + path.TrimStart(new[] { '/' });
         }
 
         private void Awake()
@@ -60,8 +78,10 @@ namespace SjgPatch
                 "Short-circuit the dead Steam/PlayFab/backend authentication and run a local offline session.");
             ForceDeveloper = Config.Bind("General", "ForceDeveloper", true,
                 "Force ClientPermission.IsDeveloper = true (unlocks the in-game dev console and debug tools).");
-            ApiBaseUrl = Config.Bind("Server", "ApiBaseUrl", "",
-                "Base URL of a self-hosted SJG server, e.g. http://127.0.0.1:8080/ . Enables the server browser and matchmaking.");
+            ApiBaseUrl = Config.Bind("Server", "ApiBaseUrl", "sjg.dnd.wtf",
+                "Base URL of the Soviet Jump Game backend. A bare host is assumed to be HTTPS "
+                + "(sjg.dnd.wtf -> https://sjg.dnd.wtf/); include a scheme for a local server, "
+                + "e.g. http://127.0.0.1:8080/ . Enables the server browser and matchmaking.");
 
             HostLocalMatches = Config.Bind("LocalMatch", "HostLocalMatches", true,
                 "When you pick MATCHMAKING, host a local server with bots instead of contacting the dead services.");
@@ -132,7 +152,7 @@ namespace SjgPatch
         private IEnumerator Bootstrap()
         {
             if (HasApi)
-                Patches.RedirectApi(ApiBaseUrl.Value);
+                Patches.RedirectApi(ApiBase);
 
             while (UnityEngine.Object.FindObjectOfType<PlayFabManager>() == null)
                 yield return null;
