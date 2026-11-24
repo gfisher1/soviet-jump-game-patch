@@ -36,6 +36,10 @@ which **server** to use — press **Enter** for the default, `sjg.dnd.wtf`.
 | `MATCHMAKING` / **F8** | Host a local match on a real map with bots |
 | **F6** | Join the server set in `Server.DirectConnectAddress` |
 
+> **Note:** the game's own **Rooms** (private match / room code) and **server/region
+> selection** menu entries do **not** work — they still call the shut-down live services.
+> Use `PRACTICE`, `MATCHMAKING` (`F8`) or `F6` instead.
+
 ## Documentation
 
 Full documentation lives in the **[wiki](https://git.gfi.sh/gfisher/soviet-jump-game-patch/wiki)**:

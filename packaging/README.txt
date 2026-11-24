@@ -60,6 +60,10 @@ into:   <game>/BepInEx/plugins/
   MATCHMAKING (or F8)   host a local bot match
   F6                    join the server set in Server.DirectConnectAddress
 
+  NOTE: the game's own Rooms (private match / room code) and
+  server/region selection menu entries do not work - they still call
+  the shut-down live services.
+
   The installers ask which server to use and write it to the config
   file (just press Enter to accept the default, sjg.dnd.wtf):
 

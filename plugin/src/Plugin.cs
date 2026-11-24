@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.0";
+        public const string Version = "1.1.1";
 
         internal static SjgPlugin Instance;
         internal static ManualLogSource Log;
