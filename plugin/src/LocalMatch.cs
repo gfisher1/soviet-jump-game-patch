@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using UnityEngine;
 using UdpKit;
@@ -98,6 +99,56 @@ namespace SjgPatch
             }
 
             JoinAddress(host, port);
+        }
+
+        /// <summary>
+        /// The default MATCHMAKING action: join the public server if one is listed, otherwise host a
+        /// local bot match, so clicking MATCHMAKING always puts the player in a game.
+        /// </summary>
+        internal static void Matchmake()
+        {
+            if (SjgPlugin.Instance == null || !SjgPlugin.HasApi)
+            {
+                Host();
+                return;
+            }
+
+            SjgPlugin.Instance.StartCoroutine(MatchmakeRoutine());
+        }
+
+        private static IEnumerator MatchmakeRoutine()
+        {
+            ServerBrowser.Refresh();
+
+            float waited = 0f;
+            while (ServerBrowser.Loading && waited < 8f)
+            {
+                waited += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            ServerInfo pick = ServerBrowser.First();
+
+            // Nothing advertised? Fall back to the configured default server address.
+            if (pick == null && !string.IsNullOrEmpty(SjgPlugin.DirectConnectAddress.Value))
+            {
+                string addr = SjgPlugin.DirectConnectAddress.Value;
+                int colon = addr.LastIndexOf(':');
+                int port;
+                if (colon > 0 && int.TryParse(addr.Substring(colon + 1), out port))
+                    pick = new ServerInfo { ip = addr.Substring(0, colon), port = port, name = "default" };
+            }
+
+            if (pick != null)
+            {
+                SjgPlugin.Log.LogInfo("Matchmaking: joining '" + (pick.name ?? "") + "' at " + pick.ip + ":" + pick.port);
+                JoinAddress(pick.ip, pick.port);
+            }
+            else
+            {
+                SjgPlugin.Log.LogInfo("Matchmaking: no server listed; hosting a local bot match.");
+                Host();
+            }
         }
 
         private static MethodInfo _startServer;

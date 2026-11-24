@@ -17,8 +17,14 @@ namespace SjgPatch
         private string _map;
         private bool _started;
 
+        private static bool _active;
+
         internal static void Start(ushort port, string map)
         {
+            if (_active)
+                return;
+            _active = true;
+
             var go = new GameObject("SjgHeartbeat");
             UnityEngine.Object.DontDestroyOnLoad(go);
             var hb = go.AddComponent<HeartbeatBehaviour>();

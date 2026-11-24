@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.1";
+        public const string Version = "1.1.2";
 
         internal static SjgPlugin Instance;
         internal static ManualLogSource Log;
@@ -58,7 +58,8 @@ namespace SjgPatch
                     return "";
                 if (value.IndexOf("://", StringComparison.Ordinal) < 0)
                     value = "https://" + value;
-                return value.TrimEnd('/');
+                // This build's Mono runtime has no string.TrimEnd(char); pass a char array.
+                return value.TrimEnd(new[] { '/' });
             }
         }
 
@@ -96,14 +97,15 @@ namespace SjgPatch
             RegisterWithServer = Config.Bind("LocalMatch", "RegisterWithServer", true,
                 "Advertise a locally-hosted match to the backend so it shows up in server browsers.");
 
-            DirectConnectAddress = Config.Bind("Server", "DirectConnectAddress", "",
-                "Simple fallback: a fixed server to join as host:port (e.g. 192.168.1.50:42010).");
+            DirectConnectAddress = Config.Bind("Server", "DirectConnectAddress", "sjg.dnd.wtf:42010",
+                "The server to join, as host:port. Defaults to the public server.");
             ConnectHotkey = Config.Bind("Server", "ConnectHotkey", "F6",
                 "Hotkey to join Server.DirectConnectAddress (empty to disable).");
             ServerBrowserHotkey = Config.Bind("Server", "ServerBrowserHotkey", "F9",
                 "Hotkey to log the server list (requires Server.ApiBaseUrl). Empty to disable.");
-            MatchmakingAction = Config.Bind("Server", "MatchmakingAction", "Host",
-                "What the MATCHMAKING button does: 'Host' (local bot match), 'Connect' (join Server.DirectConnectAddress), or 'Vanilla'.");
+            MatchmakingAction = Config.Bind("Server", "MatchmakingAction", "Auto",
+                "What the MATCHMAKING button does: 'Auto' (join the default server, else host a local bot match), "
+                + "'Host' (local bot match), 'Connect' (join Server.DirectConnectAddress), or 'Vanilla'.");
 
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(Patches));
@@ -149,6 +151,62 @@ namespace SjgPatch
             HeartbeatBehaviour.Start(port, map);
         }
 
+        /// <summary>
+        /// Advertise whatever Bolt server we end up running. The headless server creates its own
+        /// session (so the host hotkey never fires there), and a local host's OnHosted() may race;
+        /// this watcher makes sure a running server always registers in the server browser.
+        /// </summary>
+        private static bool _serverBots;
+
+        private IEnumerator HeartbeatWatch()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(2f);
+
+                try
+                {
+                    if (!BoltNetwork.IsServer)
+                        continue;
+
+                    SeedServerBots();
+
+                    if (HasApi && RegisterWithServer.Value)
+                        HeartbeatBehaviour.Start((ushort)Mathf.Clamp(HostPort.Value, 1, 65535), MatchMap.Value);
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
+        /// A headless (or hotkey-less) server never runs LocalMatch.Host(), so seed the bot
+        /// amount here too. RoundManager.GetTargetBotPlayerCount then keeps the lobby topped up
+        /// with bots until real players take the slots.
+        /// </summary>
+        private static void SeedServerBots()
+        {
+            if (_serverBots)
+                return;
+
+            try
+            {
+                NetworkDebugSettings nds = NetworkDebugSettings.Instance;
+                if (nds == null)
+                    return;
+
+                if (nds.ServerBotAmount == 0u)
+                    nds.ServerBotAmount = (uint)Mathf.Max(0, BotCount.Value);
+                nds.ServerBotSkinRandomization = false;
+                nds.ClientBotSkinRandomization = false;
+                _serverBots = true;
+                Log.LogInfo("Server bot amount seeded: " + nds.ServerBotAmount);
+            }
+            catch (Exception e)
+            {
+                Log.LogWarning("Could not seed server bots: " + e.Message);
+            }
+        }
+
         private IEnumerator Bootstrap()
         {
             if (HasApi)
@@ -156,6 +214,8 @@ namespace SjgPatch
 
             while (UnityEngine.Object.FindObjectOfType<PlayFabManager>() == null)
                 yield return null;
+
+            StartCoroutine(HeartbeatWatch());
 
             if (OfflineMode.Value)
             {

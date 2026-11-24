@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 using HarmonyLib;
 
 namespace SjgPatch
@@ -112,17 +113,25 @@ namespace SjgPatch
         private static bool ConnectToMatchmaking_Prefix()
         {
             string action = SjgPlugin.MatchmakingAction.Value;
+
+            if (string.Equals(action, "Vanilla", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             if (string.Equals(action, "Connect", StringComparison.OrdinalIgnoreCase))
             {
                 LocalMatch.JoinConfigured();
                 return false;
             }
-            if (SjgPlugin.HostLocalMatches.Value)
+
+            if (string.Equals(action, "Host", StringComparison.OrdinalIgnoreCase))
             {
                 LocalMatch.Host();
                 return false;
             }
-            return true;
+
+            // "Auto" (the default): join the default public server, else host a local bot match.
+            LocalMatch.Matchmake();
+            return false;
         }
 
         private static MethodInfo _assignAllDefaults;
@@ -253,10 +262,9 @@ namespace SjgPatch
 
         private static FieldInfo _apiBaseField;
 
-        // RoundManager maintains bots via GetTargetBotPlayerCount(), which maps the number of
-        // *real* players through a curve (0 real players -> 0 bots). Playing solo therefore
-        // spawns no bots and the gym countdown never starts (ActivePlayers stays 1). Pin the
-        // target to our configured bot count so a solo host gets a full lobby.
+        // RoundManager maintains bots via GetTargetBotPlayerCount(). Keep the lobby topped up: with
+        // fewer humans than BotCount, spawn the difference as bots so nobody waits for other
+        // players - and let the bots yield their slots as real players join.
         [HarmonyPrefix]
         [HarmonyPatch(typeof(RoundManager), "GetTargetBotPlayerCount")]
         private static bool GetTargetBotPlayerCount_Prefix(ref int __result)
@@ -264,8 +272,47 @@ namespace SjgPatch
             if (!SjgPlugin.HostLocalMatches.Value)
                 return true;
 
-            __result = Math.Max(0, SjgPlugin.BotCount.Value);
+            int humans = 0;
+            try
+            {
+                foreach (PlayerObject p in PlayerObjectRegistry.Players)
+                {
+                    if (p != null && !p.IsBot)
+                        humans++;
+                }
+            }
+            catch { }
+
+            if (humans < 1)
+                humans = 1;
+
+            __result = Math.Max(0, SjgPlugin.BotCount.Value - (humans - 1));
             return false;
+        }
+
+        // The real QoS probe pings PlayFab's QoS endpoints, which are gone; with no PlayFab login
+        // it throws and aborts matchmaking before the join. Our own matchmaking interception never
+        // uses it, so return an empty (successful) result rather than letting it explode.
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(PlayFab.QoS.PlayFabQosApi), "GetQosResultAsync")]
+        private static bool GetQosResultAsync_Prefix(ref Task<PlayFab.QoS.QosResult> __result)
+        {
+            try
+            {
+                var result = new PlayFab.QoS.QosResult
+                {
+                    RegionResults = new List<PlayFab.QoS.QosRegionResult>(),
+                    ErrorCode = 0,
+                    ErrorMessage = null
+                };
+                __result = Task.FromResult(result);
+                return false;
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("QoS stub failed (continuing with the real probe): " + e.Message);
+                return true;
+            }
         }
 
         /// <summary>Point the custom backend calls at a self-hosted server instead of the dead domain.</summary>

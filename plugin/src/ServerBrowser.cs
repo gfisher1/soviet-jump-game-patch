@@ -44,6 +44,19 @@ namespace SjgPatch
             SjgPlugin.Instance.StartCoroutine(FetchRoutine());
         }
 
+        internal static bool Loading => _loading;
+
+        /// <summary>The first usable server in the last-fetched list, or null.</summary>
+        internal static ServerInfo First()
+        {
+            foreach (ServerInfo s in _servers)
+            {
+                if (s != null && !string.IsNullOrEmpty(s.ip) && s.port > 0)
+                    return s;
+            }
+            return null;
+        }
+
         private static IEnumerator FetchRoutine()
         {
             _loading = true;
