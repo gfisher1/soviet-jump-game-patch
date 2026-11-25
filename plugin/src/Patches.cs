@@ -217,6 +217,13 @@ namespace SjgPatch
         [HarmonyPatch(typeof(RoundManager), "Update")]
         private static void RoundManagerUpdate_EnsureControllerPlayer()
         {
+            // Server-side only. On a client the game assigns ControllerPlayer to the local player's
+            // machine itself (PlayerMachine attach does "if (IsController() && ControllerPlayer == null)
+            // ControllerPlayer = this"), so grabbing a machine here hijacks the local input and camera
+            // (the player then falls through the floor and the HUD NREs on detached entities).
+            if (!BoltNetwork.IsServer)
+                return;
+
             if (PlayerMachine.ControllerPlayer != null)
                 return;
 
@@ -241,6 +248,23 @@ namespace SjgPatch
                             break;
                         }
                     }
+
+                    // Dedicated/headless server: there is no human player at all, only bots.
+                    // RoundManager.Update() dereferences PlayerMachine.ControllerPlayer
+                    // unguarded (IL_032d -> CurrentBiomeData), so leaving it null NRE-spams the
+                    // round every frame and the round logic never runs. Fall back to any machine,
+                    // bot or not, so the round can progress.
+                    if (candidate == null)
+                    {
+                        foreach (PlayerMachine m in PlayerObjectRegistry.PlayerMachines)
+                        {
+                            if (m != null)
+                            {
+                                candidate = m;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 if (candidate != null && PlayerMachine.ControllerPlayer == null)
@@ -259,6 +283,78 @@ namespace SjgPatch
             catch (Exception e)
             {
                 SjgPlugin.Log.LogError("Could not assign ControllerPlayer: " + e);
+            }
+        }
+
+        // The retail headless server is a one-match server: RoundManager.UpdatePlayerCount() calls
+        // ShutdownRoutine(ZeroPlayersWhileRoundInProgress) the instant a round starts with zero Bolt
+        // connections, so an idle public server quits ~5s later and the container has to restart
+        // (~40s of downtime). Bots are not Bolt connections, so even a server full of bots counts as
+        // "empty". Suppress just that one shutdown so players can connect at any time; a completed
+        // match still shuts the server down (PostMatchShutdown) as intended.
+        private static bool _loggedKeepAlive;
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(RoundManager), "ShutdownRoutine")]
+        private static bool ShutdownRoutine_Prefix(RoundManager.ShutdownCode code, ref System.Collections.IEnumerator __result)
+        {
+            if (SjgPlugin.KeepAliveWhenEmpty == null || !SjgPlugin.KeepAliveWhenEmpty.Value)
+                return true;
+
+            if (code != RoundManager.ShutdownCode.ZeroPlayersWhileRoundInProgress)
+                return true;
+
+            __result = EmptyRoutine();
+            if (!_loggedKeepAlive)
+            {
+                _loggedKeepAlive = true;
+                SjgPlugin.Log.LogInfo("[server] keeping the empty server alive (suppressed ZeroPlayersWhileRoundInProgress).");
+            }
+            return false;
+        }
+
+        // The retail server starts a round automatically PreRoundDuration seconds after the map loads
+        // (RoundManager.Update sets RoundInProgress once SyncTime.Time - state.PreRoundTimer >
+        // PreRoundDuration + 1). With only bots present the round plays itself out - the closing wall
+        // instakills anyone left - so a player who joins then spawns into the end of a round and loses
+        // instantly without playing. While no human is connected, keep pushing PreRoundTimer forward so
+        // the countdown never completes; the first player to connect then gets a full round from the start.
+        private static bool _loggedHoldRound;
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(RoundManager), "Update")]
+        private static void RoundManagerUpdate_HoldRoundWithoutPlayers()
+        {
+            if (SjgPlugin.HoldRoundWithoutPlayers == null || !SjgPlugin.HoldRoundWithoutPlayers.Value)
+                return;
+
+            try
+            {
+                if (!BoltNetwork.IsServer)
+                    return;
+
+                foreach (BoltConnection c in BoltNetwork.Connections)
+                    return; // somebody is connected - let the round run normally
+
+                RoundManager rm = RoundManager.CurrentRound;
+                if (rm == null)
+                    return;
+
+                IRoundState st = rm.state;
+                if (st == null || st.RoundInProgress)
+                    return;
+
+                st.PreRoundTimer = SyncTime.Time;
+
+                if (!_loggedHoldRound)
+                {
+                    _loggedHoldRound = true;
+                    SjgPlugin.Log.LogInfo("[server] holding the pre-round countdown until a player connects.");
+                }
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("Could not hold the round: " + e.Message);
             }
         }
 
@@ -450,6 +546,86 @@ namespace SjgPatch
             catch (Exception e)
             {
                 SjgPlugin.Log.LogError("Failed to pin the Bolt server port: " + e);
+            }
+        }
+
+        // --- malformed input packets must not drop the connection -----------------------------
+        //
+        // Bolt's EntityChannel.CommandChannel.ReadInput does "var cmd = Factory.NewCommand(typeId);
+        // cmd.Sequence = ..." with no null check. If a client sends a command type this side has not
+        // registered (Factory.Create returns null for an unknown TypeId), the NRE escapes
+        // BoltConnection.PacketReceived, which treats it as fatal and drops the connection - the
+        // player is kicked mid-match for no visible reason. Each Bolt packet is framed
+        // independently, so swallowing the exception only discards the remainder of that one packet
+        // and the connection survives.
+        private static bool _loggedInputNre;
+
+        private static Exception CommandChannelReadInput_Finalizer(Exception __exception)
+        {
+            if (__exception is NullReferenceException)
+            {
+                if (!_loggedInputNre)
+                {
+                    _loggedInputNre = true;
+                    SjgPlugin.Log.LogWarning(
+                        "[server] swallowed a malformed input packet (Bolt ReadInput NRE); the connection stays alive.");
+                }
+                return null;
+            }
+
+            return __exception;
+        }
+
+        /// <summary>Keep the connection alive when Bolt chokes on a malformed input packet.</summary>
+        internal static void PatchBoltInputReader(Harmony harmony)
+        {
+            try
+            {
+                Type commandChannel = null;
+                foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    Type t = asm.GetType("Bolt.EntityChannel+CommandChannel", false)
+                        ?? asm.GetType("EntityChannel+CommandChannel", false);
+                    if (t != null)
+                    {
+                        commandChannel = t;
+                        break;
+                    }
+                }
+
+                if (commandChannel == null)
+                {
+                    SjgPlugin.Log.LogWarning("Bolt CommandChannel not found; malformed packets may still drop players.");
+                    return;
+                }
+
+                MethodInfo finalizer = typeof(Patches).GetMethod(
+                    "CommandChannelReadInput_Finalizer",
+                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+
+                int patched = 0;
+                foreach (MethodInfo m in commandChannel.GetMethods(
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (m.Name != "ReadInput")
+                        continue;
+
+                    ParameterInfo[] ps = m.GetParameters();
+                    if (ps.Length != 1 || ps[0].ParameterType.Name != "Packet")
+                        continue;
+
+                    harmony.Patch(m, finalizer: new HarmonyMethod(finalizer));
+                    patched++;
+                }
+
+                if (patched > 0)
+                    SjgPlugin.Log.LogInfo("Guarded Bolt " + commandChannel.FullName + ".ReadInput against malformed packets.");
+                else
+                    SjgPlugin.Log.LogWarning("Bolt CommandChannel.ReadInput not found; malformed packets may still drop players.");
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogError("Failed to guard Bolt ReadInput: " + e);
             }
         }
 

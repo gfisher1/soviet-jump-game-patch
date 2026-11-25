@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.2.0";
+        public const string Version = "1.2.7";
 
         /// <summary>Fallback backend used when Server.ApiBaseUrl is left empty.</summary>
         internal const string DefaultApiBase = "sjg.dnd.wtf";
@@ -47,6 +47,8 @@ namespace SjgPatch
         internal static ConfigEntry<string> ServerBrowserHotkey;
         internal static ConfigEntry<string> MatchmakingAction;
         internal static ConfigEntry<bool> ForceServerPort;
+        internal static ConfigEntry<bool> KeepAliveWhenEmpty;
+        internal static ConfigEntry<bool> HoldRoundWithoutPlayers;
 
         /// <summary>
         /// The configured backend URL, normalised to something the game can use. A bare host
@@ -116,10 +118,27 @@ namespace SjgPatch
             ForceServerPort = Config.Bind("Server", "ForceServerPort", true,
                 "Pin every Bolt server (including the headless game server) to HostPort instead of a random port.");
 
+            KeepAliveWhenEmpty = Config.Bind("Server", "KeepAliveWhenEmpty", true,
+                "On a dedicated server, keep running when nobody is connected. The game normally shuts the "
+                + "server down the moment a round starts with zero Bolt connections (ZeroPlayersWhileRoundInProgress), "
+                + "which makes a public server unreachable between restarts. Suppress that one shutdown so clients "
+                + "can join at any time; a completed match still ends the server as usual.");
+
+            HoldRoundWithoutPlayers = Config.Bind("Server", "HoldRoundWithoutPlayers", true,
+                "Hold the pre-round countdown while nobody is connected. Otherwise the server starts a round "
+                + "automatically a few seconds after the map loads and the bots play it out; a player who joins "
+                + "then spawns into the closing wall and loses instantly. With this on, the first player to connect "
+                + "gets a fresh round from the start.");
+
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(Patches));
             Patches.PatchBoltServerPort(harmony);
+            Patches.PatchBoltInputReader(harmony);
             Log.LogInfo(Name + " " + Version + " loaded (OfflineMode=" + OfflineMode.Value + ").");
+
+            // Make sure the headless server actually accepts connections: its own
+            // ServerCallbacks is scene-scoped and never appears without a map scene.
+            ServerBootstrapBehaviour.Install();
 
             StartCoroutine(Bootstrap());
         }
