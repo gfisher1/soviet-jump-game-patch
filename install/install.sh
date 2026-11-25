@@ -96,25 +96,82 @@ cp -f "$dll" "$game_dir/BepInEx/plugins/SjgPatch.dll"
 echo "==> Installed plugin -> BepInEx/plugins/SjgPatch.dll"
 
 # ---------------------------------------------------------------------------
-# Default server
+# Play mode (online / offline) + default server
 # ---------------------------------------------------------------------------
+# set_cfg <file> <section> <key> <value>
+# Merge one setting into the BepInEx config. The installer may be re-run at any
+# time to change the choice: managed settings are updated in place and anything
+# the installer does not manage is left alone.
+set_cfg() {
+  local file="$1" section="$2" key="$3" value="$4"
+  mkdir -p "$(dirname "$file")"
+  [[ -f "$file" ]] || : > "$file"
+  local tmp; tmp="$(mktemp "${TMPDIR:-/tmp}/sjgcfg.XXXXXX")"
+  awk -v section="$section" -v key="$key" -v value="$value" '
+    function emit() { print key " = " value; done = 1 }
+    /^[[:space:]]*\[[^]]*\][[:space:]]*$/ {
+      if (insec && !done) emit()
+      name = $0
+      sub(/^[[:space:]]*\[/, "", name)
+      sub(/\][[:space:]]*$/, "", name)
+      insec = (name == section)
+      if (insec) seen = 1
+      print
+      next
+    }
+    {
+      if (insec && !done) {
+        k = $0
+        sub(/[[:space:]]*=.*$/, "", k)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+        if (k == key) { emit(); next }
+      }
+      print
+    }
+    END {
+      if (insec && !done) emit()
+      if (!seen) { if (NR > 0) print ""; print "[" section "]"; print key " = " value }
+    }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
 default_server="sjg.dnd.wtf"
-server="$default_server"
+
+# How should the game be played? Online (the public server) is the default;
+# offline keeps everything local and never touches the shut-down services.
+mode="online"
 if [[ -t 0 ]]; then
+  printf 'Play online (public server) or offline (bots only)? [online/offline] [online]: '
+  reply=""
+  IFS= read -r reply || true
+  case "${reply,,}" in
+    off*|local*|solo*|single*) mode="offline" ;;
+    *)                         mode="online" ;;
+  esac
+fi
+
+server="$default_server"
+if [[ "$mode" == "online" && -t 0 ]]; then
   printf 'Default server address [%s]: ' "$default_server"
   reply=""
   IFS= read -r reply || true
-  [[ -n "$reply" ]] && server="$reply"
+  if [[ -n "$reply" ]]; then server="$reply"; fi
 fi
 
 cfg="$game_dir/BepInEx/config/games.gfi.sjg.patch.cfg"
-if [[ -f "$cfg" ]]; then
-  echo "==> Keeping existing config: $cfg"
+set_cfg "$cfg" General   OfflineMode         true
+set_cfg "$cfg" Server    ApiBaseUrl          "$server"
+if [[ "$mode" == "offline" ]]; then
+  set_cfg "$cfg" Server    MatchmakingMode     Host
+  set_cfg "$cfg" LocalMatch RegisterWithServer false
+  echo "==> Offline mode: MATCHMAKING hosts a local match with bots (no account, no server)."
 else
-  mkdir -p "$(dirname "$cfg")"
-  printf '[Server]\nApiBaseUrl = %s\n' "$server" > "$cfg"
-  echo "==> Default server set to: $server"
+  set_cfg "$cfg" Server    MatchmakingMode     Vanilla
+  set_cfg "$cfg" LocalMatch RegisterWithServer true
+  echo "==> Online mode: MATCHMAKING joins the public server at $server."
 fi
+echo "==> Config updated: $cfg"
 
 echo
 echo "Done. Launch the game normally (through Steam)."
@@ -122,4 +179,5 @@ echo
 echo "Steam / Proton (Linux) users: add this to the game's Launch Options:"
 echo "    WINEDLLOVERRIDES=\"winhttp=n,b\" %command%"
 echo
+echo "Re-run this installer at any time to switch between online and offline."
 echo "Config file: BepInEx/config/games.gfi.sjg.patch.cfg"

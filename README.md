@@ -22,8 +22,11 @@ Works on **Windows** and **Linux (Steam Proton)**.
      Launch Options to `WINEDLLOVERRIDES="winhttp=n,b" %command%`.
 3. Launch the game through Steam.
 
-BepInEx is bundled, so no downloads and no extra software are needed. The installer asks
-which **server** to use — press **Enter** for the default, `sjg.dnd.wtf`.
+BepInEx is bundled, so no downloads and no extra software are needed. The installer first
+asks whether to play **online** (the default) or **offline** (bots only), then, in online
+mode, which **server** to use — press **Enter** to accept the defaults, `sjg.dnd.wtf`.
+**Re-run the installer at any time to switch modes or servers** — it keeps your other
+settings.
 
 **Already have BepInEx?** Skip the installer and drop **`SjgPatch.dll`** into
 `<game>/BepInEx/plugins/`.

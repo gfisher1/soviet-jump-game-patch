@@ -65,9 +65,17 @@ into:   <game>/BepInEx/plugins/
   server/region selection menu entries do not work - they still call
   the shut-down live services.
 
-  The installers ask which server to use and write it to the config
-  file (just press Enter to accept the default, sjg.dnd.wtf):
+  The installers ask whether to play online (the default) or offline,
+  and write the choice to the config file - just press Enter to accept
+  the defaults. Re-run the installer any time to switch.
 
-    BepInEx/config/games.gfi.sjg.patch.cfg   ->   [Server] ApiBaseUrl
+    BepInEx/config/games.gfi.sjg.patch.cfg
+        [General]    OfflineMode          true
+        [Server]     ApiBaseUrl           sjg.dnd.wtf
+        [Server]     MatchmakingMode      Vanilla (online) / Host (offline)
+        [LocalMatch] RegisterWithServer   true (online) / false (offline)
+
+    online   connect to the public server (default: sjg.dnd.wtf)
+    offline  skip the login screen and play a bots-only match, no network
 
 Documentation: https://github.com/gfisher1/soviet-jump-game-patch/wiki

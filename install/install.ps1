@@ -73,20 +73,76 @@ Write-Host "==> Installed plugin -> BepInEx\plugins\SjgPatch.dll"
 
 Write-Host ""
 
-# 3. Default server
+# 3. Play mode (online / offline) + default server
+# Set-Cfg merges one setting into the BepInEx config, so the installer can be
+# re-run at any time to change the choice; other settings are left untouched.
+function Set-Cfg {
+    param([string]$Path, [string]$Section, [string]$Key, [string]$Value)
+
+    $lines = @()
+    if (Test-Path -LiteralPath $Path) { $lines = @(Get-Content -LiteralPath $Path) }
+
+    $out = New-Object System.Collections.Generic.List[string]
+    $inSection = $false
+    $done = $false
+    $seenSection = $false
+
+    foreach ($line in $lines) {
+        if ($line -match '^\s*\[(.+?)\]\s*$') {
+            if ($inSection -and -not $done) { $out.Add("$Key = $Value"); $done = $true }
+            $name = $Matches[1].Trim()
+            $inSection = ($name -eq $Section)
+            if ($inSection) { $seenSection = $true }
+            $out.Add($line)
+            continue
+        }
+        if ($inSection -and -not $done) {
+            $k = ($line -replace '\s*=.*$', '').Trim()
+            if ($k -eq $Key) { $out.Add("$Key = $Value"); $done = $true; continue }
+        }
+        $out.Add($line)
+    }
+    if ($inSection -and -not $done) { $out.Add("$Key = $Value"); $done = $true }
+    if (-not $seenSection) {
+        if ($out.Count -gt 0) { $out.Add("") }
+        $out.Add("[$Section]")
+        $out.Add("$Key = $Value")
+    }
+
+    $dir = Split-Path -Parent $Path
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    Set-Content -LiteralPath $Path -Value $out -Encoding ASCII
+}
+
 $defaultServer = "sjg.dnd.wtf"
-$server = Read-Host "Default server address [$defaultServer]"
-if ([string]::IsNullOrWhiteSpace($server)) { $server = $defaultServer }
+
+# Online (the public server) is the default; offline keeps everything local and
+# never touches the shut-down services.
+$mode = "online"
+$answer = Read-Host "Play online (public server) or offline (bots only)? [online/offline] [online]"
+if ($answer -match '^\s*(off|local|solo|single)') { $mode = "offline" }
+
+$server = $defaultServer
+if ($mode -eq "online") {
+    $server = Read-Host "Default server address [$defaultServer]"
+    if ([string]::IsNullOrWhiteSpace($server)) { $server = $defaultServer }
+}
 
 $cfg = Join-Path $GameDir "BepInEx\config\games.gfi.sjg.patch.cfg"
-if (Test-Path $cfg) {
-    Write-Host "==> Keeping existing config: $cfg"
+Set-Cfg $cfg "General"   "OfflineMode"         "true"
+Set-Cfg $cfg "Server"    "ApiBaseUrl"          $server
+if ($mode -eq "offline") {
+    Set-Cfg $cfg "Server"    "MatchmakingMode"     "Host"
+    Set-Cfg $cfg "LocalMatch" "RegisterWithServer" "false"
+    Write-Host "==> Offline mode: MATCHMAKING hosts a local match with bots."
 } else {
-    New-Item -ItemType Directory -Force -Path (Split-Path $cfg) | Out-Null
-    Set-Content -Path $cfg -Value "[Server]`r`nApiBaseUrl = $server" -Encoding ASCII
-    Write-Host "==> Default server set to: $server"
+    Set-Cfg $cfg "Server"    "MatchmakingMode"     "Vanilla"
+    Set-Cfg $cfg "LocalMatch" "RegisterWithServer" "true"
+    Write-Host "==> Online mode: MATCHMAKING joins the public server at $server."
 }
+Write-Host "==> Config updated: $cfg"
 
 Write-Host ""
 Write-Host "Done. Launch the game normally (through Steam)."
+Write-Host "Re-run this installer at any time to switch between online and offline."
 Write-Host "Config file: BepInEx\config\games.gfi.sjg.patch.cfg"
