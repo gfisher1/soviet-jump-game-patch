@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.2";
+        public const string Version = "1.1.3";
 
         internal static SjgPlugin Instance;
         internal static ManualLogSource Log;
@@ -43,6 +43,7 @@ namespace SjgPatch
         internal static ConfigEntry<string> ConnectHotkey;
         internal static ConfigEntry<string> ServerBrowserHotkey;
         internal static ConfigEntry<string> MatchmakingAction;
+        internal static ConfigEntry<bool> ForceServerPort;
 
         /// <summary>
         /// The configured backend URL, normalised to something the game can use. A bare host
@@ -107,8 +108,12 @@ namespace SjgPatch
                 "What the MATCHMAKING button does: 'Auto' (join the default server, else host a local bot match), "
                 + "'Host' (local bot match), 'Connect' (join Server.DirectConnectAddress), or 'Vanilla'.");
 
+            ForceServerPort = Config.Bind("Server", "ForceServerPort", true,
+                "Pin every Bolt server (including the headless game server) to HostPort instead of a random port.");
+
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(Patches));
+            Patches.PatchBoltServerPort(harmony);
             Log.LogInfo(Name + " " + Version + " loaded (OfflineMode=" + OfflineMode.Value + ").");
 
             StartCoroutine(Bootstrap());

@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 using HarmonyLib;
+using UdpKit;
+using UnityEngine;
 
 namespace SjgPatch
 {
@@ -338,6 +340,83 @@ namespace SjgPatch
             catch (Exception e)
             {
                 SjgPlugin.Log.LogError("Failed to redirect API base URL: " + e);
+            }
+        }
+
+        /// <summary>Find the game's BoltLauncher type (namespace varies between builds).</summary>
+        internal static Type FindBoltLauncher()
+        {
+            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type t = asm.GetType("Bolt.BoltLauncher", false) ?? asm.GetType("BoltLauncher", false);
+                if (t != null)
+                    return t;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Pin every Bolt server to SjgPlugin.HostPort.
+        ///
+        /// The headless game server starts its session with a wildcard endpoint (port 0), so the OS
+        /// hands out a random UDP port and nobody can connect. Rewriting the endpoint makes the
+        /// server bind a known, published port instead.
+        /// </summary>
+        internal static void ForceServerPort_Prefix(ref UdpEndPoint endpoint)
+        {
+            try
+            {
+                ushort port = (ushort)Mathf.Clamp(SjgPlugin.HostPort.Value, 1, 65535);
+                if (!SjgPlugin.ForceServerPort.Value)
+                    return;
+
+                SjgPlugin.Log.LogInfo("Bolt StartServer endpoint " + endpoint + " -> forcing port " + port + ".");
+                endpoint = new UdpEndPoint(UdpIPv4Address.Any, port);
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("Could not force the Bolt server port: " + e.Message);
+            }
+        }
+
+        /// <summary>Reflection-patch every BoltLauncher.StartServer overload (compile-safe).</summary>
+        internal static void PatchBoltServerPort(Harmony harmony)
+        {
+            try
+            {
+                Type launcher = FindBoltLauncher();
+                if (launcher == null)
+                {
+                    SjgPlugin.Log.LogWarning("BoltLauncher not found; the server port is not pinned.");
+                    return;
+                }
+
+                MethodInfo prefix = typeof(Patches).GetMethod(
+                    "ForceServerPort_Prefix",
+                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+
+                int patched = 0;
+                foreach (MethodInfo m in launcher.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                {
+                    if (m.Name != "StartServer")
+                        continue;
+
+                    ParameterInfo[] ps = m.GetParameters();
+                    if (ps.Length < 1 || ps[0].ParameterType != typeof(UdpEndPoint))
+                        continue;
+
+                    harmony.Patch(m, new HarmonyMethod(prefix));
+                    patched++;
+                    SjgPlugin.Log.LogInfo("Pinned the Bolt port on " + launcher.FullName + "." + m.Name + "(" + ps.Length + " args).");
+                }
+
+                if (patched == 0)
+                    SjgPlugin.Log.LogWarning("No BoltLauncher.StartServer overload found to pin the port.");
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogError("Failed to pin the Bolt server port: " + e);
             }
         }
     }
