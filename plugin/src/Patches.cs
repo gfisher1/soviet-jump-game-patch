@@ -301,9 +301,31 @@ namespace SjgPatch
         {
             try
             {
+                // The game's region selection runs a LINQ First()/Single() over this list, so an
+                // EMPTY list throws "Sequence contains no elements" and aborts the vanilla join.
+                var regions = new List<PlayFab.QoS.QosRegionResult>();
+                var one = new PlayFab.QoS.QosRegionResult();
+                try
+                {
+                    foreach (FieldInfo f in typeof(PlayFab.QoS.QosRegionResult)
+                                 .GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        string n = f.Name.ToLowerInvariant();
+                        if (f.FieldType == typeof(string))
+                            f.SetValue(one, "USSR");
+                        else if (f.FieldType == typeof(int))
+                            f.SetValue(one, (n.Contains("latency") || n.Contains("ping")) ? 50 : 0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SjgPlugin.Log.LogWarning("Could not populate the QoS region entry: " + ex.Message);
+                }
+                regions.Add(one);
+
                 var result = new PlayFab.QoS.QosResult
                 {
-                    RegionResults = new List<PlayFab.QoS.QosRegionResult>(),
+                    RegionResults = regions,
                     ErrorCode = 0,
                     ErrorMessage = null
                 };
