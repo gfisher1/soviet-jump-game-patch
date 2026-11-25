@@ -286,31 +286,87 @@ namespace SjgPatch
             }
         }
 
-        // The retail headless server is a one-match server: RoundManager.UpdatePlayerCount() calls
+        // The retail server is a one-match server: RoundManager.UpdatePlayerCount() calls
         // ShutdownRoutine(ZeroPlayersWhileRoundInProgress) the instant a round starts with zero Bolt
         // connections, so an idle public server quits ~5s later and the container has to restart
         // (~40s of downtime). Bots are not Bolt connections, so even a server full of bots counts as
-        // "empty". Suppress just that one shutdown so players can connect at any time; a completed
-        // match still shuts the server down (PostMatchShutdown) as intended.
+        // "empty". Suppress that shutdown so players can connect at any time; a completed match still
+        // shuts the dedicated server down (PostMatchShutdown) as intended.
+        //
+        // On a local host (MATCHMAKING -> Host) the same code fires - the local player is a
+        // server-side player, not a Bolt connection - and a completed match would call
+        // Application.Quit() and close the player's own game. There, swallow the empty-server
+        // shutdown and start a fresh match when the old one ends.
         private static bool _loggedKeepAlive;
+        private static bool _loggedLocalMatchEnd;
+        private static bool _localRestartPending;
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(RoundManager), "ShutdownRoutine")]
         private static bool ShutdownRoutine_Prefix(RoundManager.ShutdownCode code, ref System.Collections.IEnumerator __result)
         {
-            if (SjgPlugin.KeepAliveWhenEmpty == null || !SjgPlugin.KeepAliveWhenEmpty.Value)
-                return true;
+            bool headless = IsHeadlessInstance();
 
-            if (code != RoundManager.ShutdownCode.ZeroPlayersWhileRoundInProgress)
-                return true;
-
-            __result = EmptyRoutine();
-            if (!_loggedKeepAlive)
+            if (code == RoundManager.ShutdownCode.ZeroPlayersWhileRoundInProgress)
             {
-                _loggedKeepAlive = true;
-                SjgPlugin.Log.LogInfo("[server] keeping the empty server alive (suppressed ZeroPlayersWhileRoundInProgress).");
+                if (SjgPlugin.KeepAliveWhenEmpty == null || !SjgPlugin.KeepAliveWhenEmpty.Value)
+                    return true;
+
+                __result = EmptyRoutine();
+                if (!_loggedKeepAlive)
+                {
+                    _loggedKeepAlive = true;
+                    SjgPlugin.Log.LogInfo("[server] keeping the empty server alive (suppressed ZeroPlayersWhileRoundInProgress).");
+                }
+                return false;
+            }
+
+            // A dedicated server is restarted by its container when the match ends.
+            if (headless)
+                return true;
+
+            // The game re-enters ShutdownRoutine every frame while the match is over, so only
+            // schedule one restart.
+            if (_localRestartPending)
+            {
+                __result = EmptyRoutine();
+                return false;
+            }
+
+            _localRestartPending = true;
+            __result = LocalMatchRestartRoutine();
+            if (!_loggedLocalMatchEnd)
+            {
+                _loggedLocalMatchEnd = true;
+                SjgPlugin.Log.LogInfo("[server] the match ended on a local host; starting a new match instead of quitting.");
             }
             return false;
+        }
+
+        /// <summary>
+        /// A local host must not quit the application when its match ends (that would close the
+        /// player's own game). Reload the map instead, which tears the finished round down and
+        /// starts a fresh one with bots.
+        /// </summary>
+        private static System.Collections.IEnumerator LocalMatchRestartRoutine()
+        {
+            yield return new UnityEngine.WaitForSeconds(5f);
+            try
+            {
+                string map = SjgPlugin.MatchMap == null ? null : SjgPlugin.MatchMap.Value;
+                if (string.IsNullOrEmpty(map))
+                    map = LocalMatch.MapA;
+                SjgPlugin.Log.LogInfo("[server] loading '" + map + "' for the next match.");
+                BoltNetwork.LoadScene(map);
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogError("Could not start the next match: " + e);
+            }
+            finally
+            {
+                _localRestartPending = false;
+            }
         }
 
         // The retail server starts a round automatically PreRoundDuration seconds after the map loads
