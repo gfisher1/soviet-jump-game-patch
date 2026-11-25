@@ -367,12 +367,23 @@ namespace SjgPatch
         {
             try
             {
-                ushort port = (ushort)Mathf.Clamp(SjgPlugin.HostPort.Value, 1, 65535);
                 if (!SjgPlugin.ForceServerPort.Value)
                     return;
 
-                SjgPlugin.Log.LogInfo("Bolt StartServer endpoint " + endpoint + " -> forcing port " + port + ".");
+                ushort port = (ushort)Mathf.Clamp(SjgPlugin.HostPort.Value, 1, 65535);
+                string before = endpoint == null ? "<null>" : endpoint.ToString();
+
+                // Only pin a real listen endpoint (wildcard address, port 0). Session/id
+                // endpoints carry Bolt's internal references and must be left alone, or the
+                // server never manages to bind its UDP socket at all.
+                if (before.IndexOf("0.0.0.0:0", StringComparison.Ordinal) < 0)
+                {
+                    SjgPlugin.Log.LogInfo("Bolt StartServer endpoint " + before + " -> left unchanged.");
+                    return;
+                }
+
                 endpoint = new UdpEndPoint(UdpIPv4Address.Any, port);
+                SjgPlugin.Log.LogInfo("Bolt StartServer endpoint " + before + " -> " + endpoint + " (pinned to " + port + ").");
             }
             catch (Exception e)
             {
