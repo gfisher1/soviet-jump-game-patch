@@ -23,7 +23,10 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.4";
+        public const string Version = "1.1.5";
+
+        /// <summary>Fallback backend used when Server.ApiBaseUrl is left empty.</summary>
+        internal const string DefaultApiBase = "sjg.dnd.wtf";
 
         internal static SjgPlugin Instance;
         internal static ManualLogSource Log;
@@ -55,8 +58,10 @@ namespace SjgPatch
             get
             {
                 string value = ApiBaseUrl == null ? "" : ApiBaseUrl.Value.Trim();
+                // An empty value (e.g. a stale config written by an older installer) still
+                // means "use the default server", so click-to-play keeps working.
                 if (value.Length == 0)
-                    return "";
+                    value = DefaultApiBase;
                 if (value.IndexOf("://", StringComparison.Ordinal) < 0)
                     value = "https://" + value;
                 // This build's Mono runtime has no string.TrimEnd(char); pass a char array.
