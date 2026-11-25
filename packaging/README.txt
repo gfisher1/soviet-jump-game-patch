@@ -14,6 +14,8 @@ WHAT'S INSIDE
   SjgPatch.dll          The patch itself
   Install.bat           Windows installer (double-click)
   install.sh            Linux / Steam Proton installer
+  THIRD-PARTY-NOTICES.md  Licenses of the bundled components
+  licenses/             Full license texts (LGPL-2.1)
 
 --------------------------------------------------------------------
  WINDOWS

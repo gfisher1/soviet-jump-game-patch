@@ -85,6 +85,15 @@ Reverse-engineered for interoperability and preservation, with the developer's
 permission, using a legally purchased copy. No copyrighted game assets are included —
 you must own the game.
 
+## Third-party components
+
+The install bundle redistributes **BepInEx**, **UnityDoorstop**, **HarmonyX**,
+**MonoMod** and **Mono.Cecil** unmodified, so the installer needs no internet
+connection. BepInEx and UnityDoorstop are LGPL-2.1; the others are MIT. They are
+loaded at runtime and can be replaced with your own builds. Full license texts and
+source links are in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). This
+project's own code is MIT and does not statically link against them.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

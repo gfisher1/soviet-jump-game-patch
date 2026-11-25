@@ -79,6 +79,11 @@ cp -f "$repo/install/uninstall.bat"  "$stage/Uninstall.bat"
 cp -f "$here/README.txt"             "$stage/README.txt"
 chmod +x "$stage/install.sh" "$stage/uninstall.sh"
 
+# Third-party notices + the licenses of the components we redistribute.
+cp -f "$repo/THIRD-PARTY-NOTICES.md" "$stage/THIRD-PARTY-NOTICES.md"
+mkdir -p "$stage/licenses"
+cp -f "$repo/licenses/"*.txt         "$stage/licenses/"
+
 # ---------------------------------------------------------------------------
 # 3. Zip it up
 # ---------------------------------------------------------------------------
