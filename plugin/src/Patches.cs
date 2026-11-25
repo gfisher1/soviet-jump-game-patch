@@ -333,6 +333,13 @@ namespace SjgPatch
                 if (!BoltNetwork.IsServer)
                     return;
 
+                // Only the dedicated headless server waits for its first player. A local host
+                // (MATCHMAKING -> Host) runs inside a visible client, where the local player is a
+                // server-side player rather than a Bolt connection - holding the countdown there
+                // would freeze the match forever.
+                if (!IsHeadlessInstance())
+                    return;
+
                 foreach (BoltConnection c in BoltNetwork.Connections)
                     return; // somebody is connected - let the round run normally
 
@@ -356,6 +363,52 @@ namespace SjgPatch
             {
                 SjgPlugin.Log.LogWarning("Could not hold the round: " + e.Message);
             }
+        }
+
+        // True only for the dedicated headless server. Uses the game's own Headless.IsHeadless()
+        // (~HeadlessDebug.txt marker, -batchmode, or a null graphics device) so this matches what
+        // the game itself considers headless; falls back to Application.isBatchMode.
+        private static bool? _headlessInstance;
+
+        internal static bool IsHeadlessInstance()
+        {
+            if (_headlessInstance.HasValue)
+                return _headlessInstance.Value;
+
+            bool value = false;
+            try
+            {
+                foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    Type t = asm.GetType("Headless", false);
+                    if (t == null)
+                        continue;
+
+                    MethodInfo m = t.GetMethod("IsHeadless", BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null);
+                    if (m != null && m.ReturnType == typeof(bool))
+                    {
+                        value = (bool)m.Invoke(null, null);
+                        break;
+                    }
+
+                    PropertyInfo p = t.GetProperty("IsHeadless", BindingFlags.Public | BindingFlags.Static);
+                    if (p != null && p.PropertyType == typeof(bool))
+                    {
+                        value = (bool)p.GetValue(null, null);
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+                value = false;
+            }
+
+            if (!value)
+                value = UnityEngine.Application.isBatchMode;
+
+            _headlessInstance = value;
+            return value;
         }
 
         private static FieldInfo _apiBaseField;
