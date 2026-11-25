@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.6";
+        public const string Version = "1.1.7";
 
         /// <summary>Fallback backend used when Server.ApiBaseUrl is left empty.</summary>
         internal const string DefaultApiBase = "sjg.dnd.wtf";
@@ -109,7 +109,7 @@ namespace SjgPatch
                 "Hotkey to join Server.DirectConnectAddress (empty to disable).");
             ServerBrowserHotkey = Config.Bind("Server", "ServerBrowserHotkey", "F9",
                 "Hotkey to log the server list (requires Server.ApiBaseUrl). Empty to disable.");
-            MatchmakingAction = Config.Bind("Server", "MatchmakingAction", "Auto",
+            MatchmakingAction = Config.Bind("Server", "MatchmakingMode", "Auto",
                 "What the MATCHMAKING button does: 'Auto' (join the default server, else host a local bot match), "
                 + "'Host' (local bot match), 'Connect' (join Server.DirectConnectAddress), or 'Vanilla'.");
 
