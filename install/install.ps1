@@ -38,6 +38,9 @@ if ($Remove) {
     if (Test-Path $dll) { Remove-Item $dll -Force; Write-Host "==> Removed plugin." }
     else { Write-Host "==> Plugin not present." }
 
+    $cfg = Join-Path $GameDir "BepInEx\config\games.gfi.sjg.patch.cfg"
+    if (Test-Path $cfg) { Remove-Item $cfg -Force; Write-Host "==> Removed patch config (games.gfi.sjg.patch.cfg)." }
+
     if ($WithBepInEx) {
         foreach ($p in @("BepInEx", "doorstop_config.ini", ".doorstop_version", "winhttp.dll")) {
             $t = Join-Path $GameDir $p

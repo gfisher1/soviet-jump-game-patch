@@ -34,6 +34,11 @@ if exist "%GAME%\BepInEx\plugins\SjgPatch.dll" (
   echo ==^> Plugin not present.
 )
 
+if exist "%GAME%\BepInEx\config\games.gfi.sjg.patch.cfg" (
+  del /f /q "%GAME%\BepInEx\config\games.gfi.sjg.patch.cfg"
+  echo ==^> Removed patch config (games.gfi.sjg.patch.cfg).
+)
+
 if "%WITHBEP%"=="1" (
   if exist "%GAME%\BepInEx" rmdir /s /q "%GAME%\BepInEx"
   del /f /q "%GAME%\doorstop_config.ini" "%GAME%\.doorstop_version" "%GAME%\winhttp.dll" 2>nul

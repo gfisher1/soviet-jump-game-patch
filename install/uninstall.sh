@@ -27,7 +27,8 @@ if [[ -z "$game_dir" ]]; then
 fi
 
 rm -f "$game_dir/BepInEx/plugins/SjgPatch.dll"
-echo "==> Removed plugin."
+rm -f "$game_dir/BepInEx/config/games.gfi.sjg.patch.cfg"
+echo "==> Removed plugin + patch config (games.gfi.sjg.patch.cfg)."
 
 if [[ "$with_bepinex" == "1" ]]; then
   rm -rf "$game_dir/BepInEx" \
