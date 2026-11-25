@@ -23,7 +23,7 @@ namespace SjgPatch
     {
         public const string Guid = "games.gfi.sjg.patch";
         public const string Name = "Soviet Jump Game Patch";
-        public const string Version = "1.1.7";
+        public const string Version = "1.1.8";
 
         /// <summary>Fallback backend used when Server.ApiBaseUrl is left empty.</summary>
         internal const string DefaultApiBase = "sjg.dnd.wtf";

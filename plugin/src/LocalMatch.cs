@@ -52,6 +52,35 @@ namespace SjgPatch
             }
         }
 
+        /// <summary>
+        /// UdpKit needs an IP literal: a hostname (e.g. sjg.dnd.wtf from the server list
+        /// or DirectConnectAddress) makes the connect silently do nothing.
+        /// </summary>
+        internal static string Resolve(string host)
+        {
+            if (string.IsNullOrEmpty(host))
+                return host;
+
+            System.Net.IPAddress parsed;
+            if (System.Net.IPAddress.TryParse(host, out parsed))
+                return host;
+
+            try
+            {
+                foreach (System.Net.IPAddress addr in System.Net.Dns.GetHostAddresses(host))
+                {
+                    if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        return addr.ToString();
+                }
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("Could not resolve '" + host + "': " + e.Message);
+            }
+
+            return host;
+        }
+
         /// <summary>Directly connect to a server (server browser / config).</summary>
         internal static void JoinAddress(string host, int port)
         {
@@ -63,14 +92,54 @@ namespace SjgPatch
                     return;
                 }
 
-                SjgPlugin.Log.LogInfo("Connecting to " + host + ":" + port);
-                BoltPro.ConnectDirect(host, (ushort)port,
+                host = ResolveHost(host);
+                string target = Resolve(host);
+                SjgPlugin.Log.LogInfo("Connecting to " + host + ":" + port
+                    + (string.Equals(target, host, StringComparison.Ordinal) ? "" : " (resolved to " + target + ")"));
+
+                BoltPro.ConnectDirect(target, (ushort)port,
                     SingletonMonoBehaviour<PlayFabManager>.Instance?.CurrentPlayer?.CreateToken());
             }
             catch (Exception e)
             {
                 SjgPlugin.Log.LogError("Connect failed: " + e);
             }
+        }
+
+        /// <summary>
+        /// Bolt's UdpKit wants an IP literal, so a hostname like "sjg.dnd.wtf" is resolved here
+        /// (preferring IPv4). Returns the input unchanged if it is already an IP or cannot be resolved.
+        /// </summary>
+        private static string ResolveHost(string host)
+        {
+            System.Net.IPAddress parsed;
+            if (System.Net.IPAddress.TryParse(host, out parsed))
+                return host;
+
+            try
+            {
+                System.Net.IPAddress[] all = System.Net.Dns.GetHostAddresses(host);
+                foreach (System.Net.IPAddress a in all)
+                {
+                    if (a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        SjgPlugin.Log.LogInfo("Resolved " + host + " -> " + a);
+                        return a.ToString();
+                    }
+                }
+
+                if (all.Length > 0)
+                {
+                    SjgPlugin.Log.LogInfo("Resolved " + host + " -> " + all[0]);
+                    return all[0].ToString();
+                }
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("Could not resolve " + host + ": " + e.Message);
+            }
+
+            return host;
         }
 
         /// <summary>Connect to the address from the config ("host:port").</summary>
