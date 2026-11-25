@@ -55,6 +55,12 @@ Full documentation lives in the **[wiki](https://github.com/gfisher1/soviet-jump
 | [Building](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Building) | Rebuild `SjgPatch.dll` from source |
 | [Troubleshooting](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Troubleshooting) | Common problems and fixes |
 
+## AI notice
+
+This project — the plugin, the installers, the backend and the release tooling — was
+built by **opencode**, an AI coding agent, using **DeepSeek V4.1** as the model. Every
+change was authored, built, deployed and tested by that agent.
+
 ## Legal / disclaimer
 
 Reverse-engineered for interoperability and preservation, with the developer's
