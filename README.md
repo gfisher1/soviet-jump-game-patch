@@ -13,23 +13,41 @@ Works on **Windows** and **Linux (Steam Proton)**.
 
 ![Main menu](docs/screenshot-menu.png)
 
-## Install (one click — nothing else to install)
+## Install
 
-1. Download `sjg-patch-*.zip` from the [releases page](../../releases).
-2. Unzip it anywhere, then:
+You need your own copy of the game. BepInEx is bundled, so there is nothing else to
+download or install.
+
+1. **Download** `sjg-patch-*.zip` from the [releases page](../../releases) and unzip it
+   anywhere.
+2. **Run the installer** from the folder you unzipped:
    - **Windows** — double-click **`Install.bat`**.
-   - **Linux / Steam Proton** — run **`./install.sh`**, then set the game's Steam
-     Launch Options to `WINEDLLOVERRIDES="winhttp=n,b" %command%`.
-3. Launch the game through Steam.
+   - **Linux / Steam Proton** — run **`./install.sh`** in a terminal.
+3. **Choose a play mode.** The installer asks one question:
 
-BepInEx is bundled, so no downloads and no extra software are needed. The installer first
-asks whether to play **online** (the default) or **offline** (bots only), then, in online
-mode, which **server** to use — press **Enter** to accept the defaults, `sjg.dnd.wtf`.
-**Re-run the installer at any time to switch modes or servers** — it keeps your other
-settings.
+   ```
+   Play online (public server) or offline (bots only)? [online/offline] [online]:
+   ```
 
-**Already have BepInEx?** Skip the installer and drop **`SjgPatch.dll`** into
-`<game>/BepInEx/plugins/`.
+   - **`online`** *(the default — just press **Enter**)* — **MATCHMAKING** joins the public
+     server at `sjg.dnd.wtf`. If it cannot be reached, you get a local bot match instead.
+   - **`offline`** *(type `offline`)* — **MATCHMAKING** hosts a match on your own PC with
+     20 bots. No account, no server, no internet needed.
+
+   In online mode it then asks for the **server address** — press **Enter** to keep the
+   default, `sjg.dnd.wtf`, or type your own server.
+4. **Linux / Steam Proton only:** set the game's Steam Launch Options to
+   `WINEDLLOVERRIDES="winhttp=n,b" %command%`
+   (Steam → right-click the game → **Properties** → **Launch Options**).
+5. **Launch the game through Steam** and click **MATCHMAKING**.
+
+**Re-run the installer at any time** to switch between online and offline, or to change
+servers — it updates the config and keeps your other settings.
+
+**Already have BepInEx?** Skip the installer: drop **`SjgPatch.dll`** into
+`<game>/BepInEx/plugins/`, then edit
+`<game>/BepInEx/config/games.gfi.sjg.patch.cfg` to match the mode you want — see
+[Configuration](https://github.com/gfisher1/soviet-jump-game-patch/wiki/Configuration).
 
 ## Controls
 
