@@ -430,5 +430,51 @@ namespace SjgPatch
                 SjgPlugin.Log.LogError("Failed to pin the Bolt server port: " + e);
             }
         }
+
+        // --- offline-mode menu fixes (v1.1.9) ------------------------------------------------
+        //
+        // With no Steam session, Facepunch's SteamApps throws when the options menu asks for the
+        // current beta branch. The exception escapes OptionsMenu.PopulateMenuItems -> RegisterButton,
+        // so the menu's buttons never register (the panel is on screen but dead to input) and
+        // OptionsButton.LateUpdate then throws an NRE every single frame (the console flood).
+        // Returning an empty beta name keeps the menu building normally.
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Steamworks.SteamApps), "get_CurrentBetaName")]
+        private static bool CurrentBetaName_Prefix(ref string __result)
+        {
+            try
+            {
+                if (!Steamworks.SteamClient.IsValid)
+                {
+                    __result = "";
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                SjgPlugin.Log.LogWarning("SteamApps.CurrentBetaName guard failed: " + e.Message);
+                __result = "";
+                return false;
+            }
+
+            return true;
+        }
+
+        // Belt and braces: even if something else leaves an options button half-built, do not let it
+        // spam a stack trace every frame (that is the flood seen in the command window).
+        private static int _lateUpdateErrors;
+
+        [HarmonyFinalizer]
+        [HarmonyPatch(typeof(OptionsButton), "LateUpdate")]
+        private static Exception OptionsButton_LateUpdate_Finalizer(Exception __exception)
+        {
+            if (__exception == null)
+                return null;
+
+            if (_lateUpdateErrors++ < 5)
+                SjgPlugin.Log.LogWarning("Suppressed OptionsButton.LateUpdate error: " + __exception.GetType().Name);
+
+            return null;
+        }
     }
 }
