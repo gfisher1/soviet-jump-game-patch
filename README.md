@@ -7,7 +7,7 @@ The game's login chain (`Steam → PlayFab → api.fantasticpassion.games`) is d
 client hangs forever on the "authentication" screen. This patch — a **BepInEx 5 /
 Harmony** plugin — short-circuits that gate so the game reaches the main menu, plays
 offline (**Practice**), hosts a **local match with bots**, and **joins servers** from the
-companion backend [`soviet-jump-game-server`](../soviet-jump-game-server).
+companion backend [`soviet-jump-game-server`](https://github.com/gfisher1/soviet-jump-game-server).
 
 Works on **Windows** and **Linux (Steam Proton)**.
 
